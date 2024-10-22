@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Incendios</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Estilos CSS -->
+    <style>
+        body {
+            background-color: #f4f4f9;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        h2, h3 {
+            color: #555;
+        }
+
+        select, button {
+            padding: 10px;
+            margin: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        h4 {
+            margin-top: 20px;
+        }
+
+        #temporizador {
+            font-weight: bold;
+            color: #d9534f;
+        }
+
+        .puntos {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .resultado {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .penalizado {
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulador de Incendios</h1>
+        
+        <h2>Tipo de incendio: <span id="tipo-incendio">{{ incendio }}</span></h2>
+        <h3>Puntos: <span id="puntos" class="puntos">{{ puntos }}</span></h3>
+
+        <form id="extintor-form">
+            <p>¿Qué tipo de extintor usas?</p>
+            <select name="seleccion" id="seleccion">
+                <option value="agua">Agua</option>
+                <option value="químico">Químico</option>
+                <option value="polvo">Polvo</option>
+            </select>
+            <button type="submit">Usar Extintor</button>
+        </form>
+
+        <h4 id="resultado" class="resultado"></h4>
+        <h4>Tiempo restante: <span id="temporizador">10</span> segundos</h4>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let tiempoRestante = 10;
+            let intervalo = setInterval(function() {
+                tiempoRestante--;
+                $('#temporizador').text(tiempoRestante);
+                
+                // Si el tiempo se acaba, envía penalización
+                if (tiempoRestante <= 0) {
+                    clearInterval(intervalo);
+                    penalizarPorTiempo();
+                }
+            }, 1000);
+
+            $('#extintor-form').on('submit', function(event) {
+                event.preventDefault();
+                clearInterval(intervalo);  // Detener el temporizador si envía antes de que se acabe el tiempo
+
+                $.ajax({
+                    url: '/seleccionar',
+                    method: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        if (response.status === 'win') {
+                            $('#resultado').text(response.mensaje).addClass('resultado').removeClass('penalizado');
+                            $('#extintor-form').hide();  // Ocultar formulario si ganaste
+                        } else {
+                            $('#tipo-incendio').text(response.nuevo_incendio);
+                            $('#puntos').text(response.puntos);
+                            $('#resultado').text('¡Sigue intentando!').removeClass('resultado penalizado');
+                            resetearTemporizador();
+                        }
+                    }
+                });
+            });
+
+            function penalizarPorTiempo() {
+                $.ajax({
+                    url: '/seleccionar',
+                    method: 'POST',
+                    data: { seleccion: 'no-seleccion' },  // Esto puede ser una selección inválida para penalizar
+                    success: function(response) {
+                        $('#tipo-incendio').text(response.nuevo_incendio);
+                        $('#puntos').text(response.puntos);
+                        $('#resultado').text('¡Se te acabó el tiempo! Penalizado.')
+                            .addClass('penalizado')
+                            .removeClass('resultado');
+                        resetearTemporizador();
+                    }
+                });
+            }
+
+            function resetearTemporizador() {
+                tiempoRestante = 10;
+                intervalo = setInterval(function() {
+                    tiempoRestante--;
+                    $('#temporizador').text(tiempoRestante);
+                    
+                    if (tiempoRestante <= 0) {
+                        clearInterval(intervalo);
+                        penalizarPorTiempo();
+                    }
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
